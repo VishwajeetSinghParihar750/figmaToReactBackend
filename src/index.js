@@ -1,17 +1,25 @@
+// server.js or app.js
+
 import express from "express";
-import path, { dirname, join } from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-import { v4 as uuidv4 } from "uuid"; // Import uuid
-dotenv.config();
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import morgan from "morgan";
+import { readdirSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import passport from "passport";
+import session from "express-session";
+import dotenv from "dotenv";
+dotenv.config();
+
+// routes
+import walletRoute from "./routes/wallet.js";
+import authRoute from "./routes/auth.js";
+
+import "./strategies/discord.js";
 
 const PORT = process.env.PORT || 5000;
 const app = express();
-const router = express.Router();
 
 // middlewares
 app.use(cookieParser());
@@ -28,82 +36,25 @@ app.use(
 app.use(express.json());
 app.use(morgan("dev")); // gives data about incoming requests on console
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const walletFilePath = join(__dirname, "db", "wallets.json");
+// session configuration
+app.use(
+  session({
+    secret: "default_secret", // Use an environment variable for the secret
+    saveUninitialized: false,
+    cookie: { maxAge: 60000 * 60 * 24 },
+    resave: true,
+  })
+);
 
-// Helper function to read wallets from file
-const readWalletsFromFile = () => {
-  try {
-    const data = fs.readFileSync(walletFilePath, "utf8");
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error reading wallets file:", error);
-    return [];
-  }
-};
+// passport
+app.use(passport.initialize());
+app.use(passport.session());
 
-// Helper function to write wallets to file
-const writeWalletsToFile = (wallets) => {
-  try {
-    fs.writeFileSync(walletFilePath, JSON.stringify(wallets, null, 2), "utf8");
-  } catch (error) {
-    console.error("Error writing to wallets file:", error);
-  }
-};
+// Use a synchronous function to dynamically import routes
+app.use("/api/auth", authRoute);
+app.use("/api", walletRoute);
 
-// Get all wallets
-router.get("/wallets", (req, res) => {
-  const wallets = readWalletsFromFile();
-  res.json(wallets);
-});
-
-// Add a new wallet
-router.post("/wallets", (req, res) => {
-  const newWallet = req.body;
-  newWallet.id = uuidv4(); // Generate a unique ID for the new wallet
-  newWallet.balance = "$0";
-  newWallet.status = "Active";
-
-  const wallets = readWalletsFromFile();
-  wallets.push(newWallet);
-  writeWalletsToFile(wallets);
-  res.status(201).json(newWallet);
-});
-
-// Edit a wallet
-router.put("/wallets/:id", (req, res) => {
-  const { id } = req.params;
-  const updatedWallet = req.body;
-  const wallets = readWalletsFromFile();
-  const index = wallets.findIndex((wallet) => wallet.id === id);
-
-  if (index !== -1) {
-    wallets[index] = { ...wallets[index], ...updatedWallet };
-    writeWalletsToFile(wallets);
-    res.json(wallets[index]);
-  } else {
-    res.status(404).json({ message: "Wallet not found" });
-  }
-});
-
-// Delete a wallet
-router.delete("/wallets/:id", (req, res) => {
-  const { id } = req.params;
-  const wallets = readWalletsFromFile();
-  const newWallets = wallets.filter((wallet) => wallet.id !== id);
-
-  if (newWallets.length !== wallets.length) {
-    writeWalletsToFile(newWallets);
-    res.json({ message: "Wallet deleted" });
-  } else {
-    res.status(404).json({ message: "Wallet not found" });
-  }
-});
-
-app.use("/api", router);
-
-// Start server
+// Start server after routes are imported
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

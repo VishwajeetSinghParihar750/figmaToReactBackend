@@ -1,9 +1,9 @@
 [
   {
-    "chain": "Ethereum",
-    "address": "jsdnfpdsfy111",
-    "image": "/ethereumCry.svg",
-    "id": "c4e246a4-9168-4ccd-96ff-b4a81e97fdcc",
+    "chain": "Solana",
+    "address": "jsdnfpdsfy8oshp9fhsf9df9f111",
+    "image": "/solanaCry.svg",
+    "userId": "699092065291862087",
     "balance": "$0",
     "status": "Active"
   }
